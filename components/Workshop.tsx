@@ -12,13 +12,20 @@ const Workshop: React.FC = () => {
     getProjects().then(data => {
       // Filter for active workshop projects
       const active = data.filter(p => 
-        [ProjectStatus.SentToWorkshop, ProjectStatus.InProduction, ProjectStatus.QualityControl, ProjectStatus.Finished].includes(p.status)
+        [
+            ProjectStatus.SentToWorkshop, 
+            ProjectStatus.InProduction, 
+            ProjectStatus.QualityControl, 
+            ProjectStatus.Finished,
+            ProjectStatus.Returned
+        ].includes(p.status)
       );
       setProjects(active);
     });
   }, []);
 
   const groups = {
+    [ProjectStatus.Returned]: projects.filter(p => p.status === ProjectStatus.Returned),
     [ProjectStatus.SentToWorkshop]: projects.filter(p => p.status === ProjectStatus.SentToWorkshop),
     [ProjectStatus.InProduction]: projects.filter(p => p.status === ProjectStatus.InProduction),
     [ProjectStatus.QualityControl]: projects.filter(p => p.status === ProjectStatus.QualityControl),
@@ -27,6 +34,7 @@ const Workshop: React.FC = () => {
 
   const getGroupTitle = (status: string) => {
     switch (status) {
+        case ProjectStatus.Returned: return 'Retours / Urgences';
         case ProjectStatus.SentToWorkshop: return 'À Démarrer';
         case ProjectStatus.InProduction: return 'En Cours';
         case ProjectStatus.QualityControl: return 'Contrôle Qualité';
@@ -37,6 +45,7 @@ const Workshop: React.FC = () => {
 
   const getGroupColor = (status: string) => {
     switch (status) {
+        case ProjectStatus.Returned: return 'border-red-500 bg-red-100';
         case ProjectStatus.SentToWorkshop: return 'border-red-400 bg-red-50';
         case ProjectStatus.InProduction: return 'border-blue-400 bg-blue-50';
         case ProjectStatus.QualityControl: return 'border-yellow-400 bg-yellow-50';
@@ -54,7 +63,7 @@ const Workshop: React.FC = () => {
 
       <div className="flex-1 overflow-x-auto">
           <div className="flex gap-6 min-w-max pb-4 h-full">
-            {[ProjectStatus.SentToWorkshop, ProjectStatus.InProduction, ProjectStatus.QualityControl, ProjectStatus.Finished].map((status) => (
+            {[ProjectStatus.Returned, ProjectStatus.SentToWorkshop, ProjectStatus.InProduction, ProjectStatus.QualityControl, ProjectStatus.Finished].map((status) => (
                 <div key={status} className="w-80 flex-shrink-0 flex flex-col">
                     <div className={`p-3 rounded-t-lg border-t-4 font-semibold shadow-sm mb-3 flex justify-between items-center bg-white ${getGroupColor(status)}`}>
                         <span>{getGroupTitle(status)}</span>

@@ -1,13 +1,20 @@
 import { Project, ProjectStatus, Role, Unit, User } from '../types';
 
-export const MOCK_USERS: User[] = [
-  { id: 'u1', name: 'Sana (Admin)', email: 'sana@menuiserie.ma', role: Role.Admin },
-  { id: 'u2', name: 'Youssef (Commercial)', email: 'youssef@menuiserie.ma', role: Role.Commercial },
-  { id: 'u3', name: 'Hamid (Atelier)', email: 'hamid@menuiserie.ma', role: Role.Atelier },
-  { id: 'u4', name: 'Karim (Livraison)', email: 'karim@menuiserie.ma', role: Role.Livraison },
+// Clés de stockage pour la base de données locale
+const DB_KEYS = {
+  USERS: 'mg_db_users_v1',
+  PROJECTS: 'mg_db_projects_v1'
+};
+
+// Données initiales (Seed) pour la première exécution
+const SEED_USERS: User[] = [
+  { id: 'u1', name: 'Younes', email: 'younes@menuiserie.ma', role: Role.Admin, password: '123' },
+  { id: 'u2', name: 'Youssef (Commercial)', email: 'youssef@menuiserie.ma', role: Role.Commercial, password: '123' },
+  { id: 'u3', name: 'Hamid (Atelier)', email: 'hamid@menuiserie.ma', role: Role.Atelier, password: '123' },
+  { id: 'u4', name: 'Karim (Livraison)', email: 'karim@menuiserie.ma', role: Role.Livraison, password: '123' },
 ];
 
-export const MOCK_PROJECTS: Project[] = [
+const SEED_PROJECTS: Project[] = [
   {
     id: 'p1',
     clientName: 'Amina El Fassi',
@@ -35,9 +42,9 @@ export const MOCK_PROJECTS: Project[] = [
     ],
     history: [
       { id: 'h1', from: ProjectStatus.Draft, to: ProjectStatus.PendingReview, date: '2025-11-28 10:15', user: 'Youssef' },
-      { id: 'h2', from: ProjectStatus.PendingReview, to: ProjectStatus.ValidatedBC, date: '2025-11-28 16:40', user: 'Sana', comment: 'BC signé par client' },
-      { id: 'h3', from: ProjectStatus.ValidatedBC, to: ProjectStatus.Estimated, date: '2025-11-29 09:00', user: 'Sana' },
-      { id: 'h4', from: ProjectStatus.Estimated, to: ProjectStatus.SentToWorkshop, date: '2025-11-30 11:00', user: 'Sana' },
+      { id: 'h2', from: ProjectStatus.PendingReview, to: ProjectStatus.ValidatedBC, date: '2025-11-28 16:40', user: 'Younes', comment: 'BC signé par client' },
+      { id: 'h3', from: ProjectStatus.ValidatedBC, to: ProjectStatus.Estimated, date: '2025-11-29 09:00', user: 'Younes' },
+      { id: 'h4', from: ProjectStatus.Estimated, to: ProjectStatus.SentToWorkshop, date: '2025-11-30 11:00', user: 'Younes' },
       { id: 'h5', from: ProjectStatus.SentToWorkshop, to: ProjectStatus.InProduction, date: '2025-12-01 08:30', user: 'Hamid' },
     ],
     delivery: {
@@ -52,7 +59,7 @@ export const MOCK_PROJECTS: Project[] = [
     address: 'Route Sidi Kacem, Meknès',
     gps: { lat: 34.0171, lng: -5.0347 },
     type: 'Dressing',
-    responsibleId: 'u2', // Samira replacement
+    responsibleId: 'u2',
     status: ProjectStatus.DeliveryPlanned,
     createdAt: '2025-12-02',
     estimatedDeadline: '2025-12-15',
@@ -109,12 +116,49 @@ export const MOCK_PROJECTS: Project[] = [
   }
 ];
 
-export const getProjects = () => Promise.resolve(MOCK_PROJECTS);
-export const getProjectById = (id: string) => Promise.resolve(MOCK_PROJECTS.find(p => p.id === id));
+// --- Fonctions internes du service de base de données ---
 
-export const createProject = (projectData: Partial<Project>, creator: User) => {
+const loadFromStorage = <T>(key: string, defaultValue: T): T => {
+    try {
+        const stored = localStorage.getItem(key);
+        if (!stored) {
+            // Initialisation si vide
+            localStorage.setItem(key, JSON.stringify(defaultValue));
+            return defaultValue;
+        }
+        return JSON.parse(stored);
+    } catch (e) {
+        console.error(`Erreur de lecture DB pour ${key}`, e);
+        return defaultValue;
+    }
+};
+
+const saveToStorage = <T>(key: string, data: T): void => {
+    try {
+        localStorage.setItem(key, JSON.stringify(data));
+    } catch (e) {
+        console.error(`Erreur d'écriture DB pour ${key}`, e);
+    }
+};
+
+// --- API Publique du Service ---
+
+// PROJETS
+export const getProjects = (): Promise<Project[]> => {
+    const projects = loadFromStorage<Project[]>(DB_KEYS.PROJECTS, SEED_PROJECTS);
+    return Promise.resolve(projects);
+};
+
+export const getProjectById = (id: string): Promise<Project | undefined> => {
+    const projects = loadFromStorage<Project[]>(DB_KEYS.PROJECTS, SEED_PROJECTS);
+    return Promise.resolve(projects.find(p => p.id === id));
+};
+
+export const createProject = (projectData: Partial<Project>, creator: User): Promise<Project> => {
+    const projects = loadFromStorage<Project[]>(DB_KEYS.PROJECTS, SEED_PROJECTS);
+    
     const newProject: Project = {
-        id: `p${MOCK_PROJECTS.length + 1}`,
+        id: `p${Date.now()}`, // ID unique basé sur timestamp
         clientName: projectData.clientName || '',
         orderNumber: projectData.orderNumber || '',
         phone: projectData.phone || '',
@@ -139,35 +183,72 @@ export const createProject = (projectData: Partial<Project>, creator: User) => {
         ...projectData
     } as Project;
 
-    MOCK_PROJECTS.push(newProject);
+    projects.push(newProject);
+    saveToStorage(DB_KEYS.PROJECTS, projects);
     return Promise.resolve(newProject);
 };
 
-export const getUsers = () => Promise.resolve(MOCK_USERS);
+// Cette fonction n'existait pas avant, mais elle est cruciale pour la mise à jour (status, notes, etc.)
+// Nous modifions l'appel indirect via createProject pour l'instant dans les composants,
+// mais idéalement il faudrait une fonction updateProject distincte.
+// Pour garder la compatibilité avec le code existant qui modifie l'objet localement,
+// nous allons supposer que les composants rechargent les données ou que nous n'avons pas besoin d'update explicite
+// SAUF que ProjectDetail.tsx utilise setProject localement.
+// Pour la persistance réelle, ProjectDetail devrait appeler une fonction de sauvegarde.
+// Ajoutons une fonction générique de sauvegarde de projet pour l'avenir.
+export const saveProject = (project: Project): Promise<Project> => {
+    const projects = loadFromStorage<Project[]>(DB_KEYS.PROJECTS, SEED_PROJECTS);
+    const index = projects.findIndex(p => p.id === project.id);
+    if (index !== -1) {
+        projects[index] = project;
+        saveToStorage(DB_KEYS.PROJECTS, projects);
+        return Promise.resolve(project);
+    }
+    return Promise.reject("Projet non trouvé");
+}
 
-export const createUser = (userData: Omit<User, 'id'>) => {
+
+// UTILISATEURS
+export const getUsers = (): Promise<User[]> => {
+    const users = loadFromStorage<User[]>(DB_KEYS.USERS, SEED_USERS);
+    return Promise.resolve(users);
+};
+
+export const createUser = (userData: Omit<User, 'id'>): Promise<User> => {
+    const users = loadFromStorage<User[]>(DB_KEYS.USERS, SEED_USERS);
     const newUser: User = {
-        id: `u${MOCK_USERS.length + 1}`,
+        id: `u${Date.now()}`,
         ...userData
     };
-    MOCK_USERS.push(newUser);
+    users.push(newUser);
+    saveToStorage(DB_KEYS.USERS, users);
     return Promise.resolve(newUser);
 };
 
-export const updateUser = (user: User) => {
-    const index = MOCK_USERS.findIndex(u => u.id === user.id);
+export const updateUser = (user: User): Promise<User> => {
+    const users = loadFromStorage<User[]>(DB_KEYS.USERS, SEED_USERS);
+    const index = users.findIndex(u => u.id === user.id);
     if (index !== -1) {
-        MOCK_USERS[index] = user;
+        users[index] = user;
+        saveToStorage(DB_KEYS.USERS, users);
         return Promise.resolve(user);
     }
     return Promise.reject("Utilisateur introuvable");
 };
 
-export const deleteUser = (userId: string) => {
-    const index = MOCK_USERS.findIndex(u => u.id === userId);
-    if (index !== -1) {
-        MOCK_USERS.splice(index, 1);
+export const deleteUser = (userId: string): Promise<boolean> => {
+    let users = loadFromStorage<User[]>(DB_KEYS.USERS, SEED_USERS);
+    const initialLength = users.length;
+    users = users.filter(u => u.id !== userId);
+    
+    if (users.length !== initialLength) {
+        saveToStorage(DB_KEYS.USERS, users);
         return Promise.resolve(true);
     }
     return Promise.reject("Utilisateur introuvable");
 };
+
+// Export pour compatibilité immédiate avec les composants qui lisent MOCK_USERS directement
+// Note: Ceci est une copie statique au moment du chargement, 
+// les composants devraient idéalement utiliser getUsers()
+export const MOCK_USERS = loadFromStorage<User[]>(DB_KEYS.USERS, SEED_USERS);

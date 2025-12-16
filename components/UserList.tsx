@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { getUsers, createUser, updateUser, deleteUser } from '../services/mockData';
 import { User, Role } from '../types';
-import { Plus, User as UserIcon, Mail, Shield, X, Save, Edit2, Trash2 } from 'lucide-react';
+import { Plus, User as UserIcon, Mail, Shield, X, Save, Edit2, Trash2, Eye, EyeOff, Lock } from 'lucide-react';
 
 const UserList: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showPasswords, setShowPasswords] = useState(false);
+  const [showModalPassword, setShowModalPassword] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    password: '',
     role: Role.Commercial
   });
 
@@ -19,13 +22,15 @@ const UserList: React.FC = () => {
 
   const handleOpenCreate = () => {
       setEditingUser(null);
-      setFormData({ name: '', email: '', role: Role.Commercial });
+      setFormData({ name: '', email: '', password: '123', role: Role.Commercial });
+      setShowModalPassword(false);
       setIsModalOpen(true);
   };
 
   const handleOpenEdit = (user: User) => {
       setEditingUser(user);
-      setFormData({ name: user.name, email: user.email, role: user.role });
+      setFormData({ name: user.name, email: user.email, password: user.password || '', role: user.role });
+      setShowModalPassword(false);
       setIsModalOpen(true);
   };
 
@@ -55,7 +60,7 @@ const UserList: React.FC = () => {
       }
       setIsModalOpen(false);
       setEditingUser(null);
-      setFormData({ name: '', email: '', role: Role.Commercial });
+      setFormData({ name: '', email: '', password: '', role: Role.Commercial });
     } catch (error) {
       console.error("Erreur lors de l'enregistrement", error);
     }
@@ -75,13 +80,22 @@ const UserList: React.FC = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-800">Gestion des Utilisateurs</h2>
-        <button 
-          onClick={handleOpenCreate}
-          className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-        >
-          <Plus size={20} />
-          <span>Nouvel Utilisateur</span>
-        </button>
+        <div className="flex gap-2">
+            <button 
+                onClick={() => setShowPasswords(!showPasswords)}
+                className="flex items-center space-x-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+            >
+                {showPasswords ? <EyeOff size={20} /> : <Eye size={20} />}
+                <span className="hidden sm:inline">{showPasswords ? 'Masquer MDP' : 'Afficher MDP'}</span>
+            </button>
+            <button 
+                onClick={handleOpenCreate}
+                className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+            >
+                <Plus size={20} />
+                <span className="hidden sm:inline">Nouvel Utilisateur</span>
+            </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -90,6 +104,7 @@ const UserList: React.FC = () => {
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nom</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mot de passe</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rôle</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
@@ -109,6 +124,9 @@ const UserList: React.FC = () => {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {user.email}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
+                  {showPasswords ? (user.password || 'N/A') : '••••••••'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getRoleColor(user.role)}`}>
@@ -182,6 +200,30 @@ const UserList: React.FC = () => {
                         value={formData.email}
                         onChange={(e) => setFormData({...formData, email: e.target.value})}
                     />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Mot de passe</label>
+                <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Lock className="h-4 w-4 text-gray-400" />
+                    </div>
+                    <input
+                        type={showModalPassword ? "text" : "password"}
+                        required
+                        className="pl-9 pr-10 block w-full rounded-lg border-gray-300 border focus:ring-blue-500 focus:border-blue-500 p-2.5"
+                        placeholder="Mot de passe"
+                        value={formData.password}
+                        onChange={(e) => setFormData({...formData, password: e.target.value})}
+                    />
+                    <button
+                        type="button"
+                        onClick={() => setShowModalPassword(!showModalPassword)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+                    >
+                        {showModalPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
                 </div>
               </div>
 

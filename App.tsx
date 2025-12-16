@@ -1,7 +1,7 @@
 import React, { useState, createContext, useContext, useEffect, ReactNode } from 'react';
 import { HashRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { User, Role } from './types';
-import { MOCK_USERS } from './services/mockData';
+import { getUsers } from './services/mockData';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import ProjectList from './components/ProjectList';
@@ -9,13 +9,14 @@ import ProjectDetail from './components/ProjectDetail';
 import NewProject from './components/NewProject';
 import Workshop from './components/Workshop';
 import UserList from './components/UserList';
+import Notifications from './components/Notifications';
 import Sidebar from './components/Sidebar';
 import { Menu } from 'lucide-react';
 
 // --- Auth Context ---
 interface AuthContextType {
   user: User | null;
-  login: (email: string) => void;
+  login: (email: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -26,9 +27,10 @@ export const useAuth = () => useContext(AuthContext);
 const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
 
-  const login = (email: string) => {
-    // Mock login logic
-    const foundUser = MOCK_USERS.find(u => u.email === email) || MOCK_USERS[0];
+  const login = async (email: string) => {
+    // Vérification asynchrone dans la "DB" locale
+    const users = await getUsers();
+    const foundUser = users.find(u => u.email === email) || users[0];
     setUser(foundUser);
   };
 
@@ -98,6 +100,7 @@ const App: React.FC = () => {
           <Route path="/projects/new" element={<ProtectedRoute><NewProject /></ProtectedRoute>} />
           <Route path="/projects/:id" element={<ProtectedRoute><ProjectDetail /></ProtectedRoute>} />
           <Route path="/workshop" element={<ProtectedRoute><Workshop /></ProtectedRoute>} />
+          <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
           <Route path="/users" element={<ProtectedRoute><UserList /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

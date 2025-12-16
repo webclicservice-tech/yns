@@ -1,5 +1,5 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   FolderKanban, 
@@ -7,9 +7,11 @@ import {
   LogOut, 
   User as UserIcon,
   X,
-  Users
+  Users,
+  Bell
 } from 'lucide-react';
-import { User, Role } from '../types';
+import { User, Role, Project, ProjectStatus } from '../types';
+import { getProjects } from '../services/mockData';
 
 interface SidebarProps {
   user: User | null;
@@ -18,6 +20,38 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ user, onClose, onLogout }) => {
+  const [notificationCount, setNotificationCount] = useState(0);
+  const location = useLocation();
+
+  useEffect(() => {
+    // Check notifications periodically or on mount
+    const checkNotifications = async () => {
+        const projects = await getProjects();
+        const now = new Date();
+        now.setHours(0, 0, 0, 0); // Normalize today
+        
+        const threeDaysFromNow = new Date(now);
+        threeDaysFromNow.setDate(now.getDate() + 3);
+
+        const isActive = (p: Project) => 
+            p.status !== ProjectStatus.Validated && 
+            p.status !== ProjectStatus.Delivered;
+
+        const count = projects.filter(p => {
+            if (!p.estimatedDeadline || !isActive(p)) return false;
+            const deadline = new Date(p.estimatedDeadline);
+            deadline.setHours(0, 0, 0, 0);
+            
+            // Count if late (deadline < now) OR approaching (deadline <= 3 days)
+            return deadline <= threeDaysFromNow; 
+        }).length;
+        
+        setNotificationCount(count);
+    };
+
+    checkNotifications();
+  }, [location.pathname]);
+
   if (!user) return null;
 
   return (
@@ -73,6 +107,22 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onClose, onLogout }) => {
             <span>Atelier</span>
           </NavLink>
         )}
+
+        <NavLink 
+          to="/notifications" 
+          onClick={onClose}
+          className={({ isActive }) => `flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${isActive ? 'bg-blue-600 text-white shadow-md' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}
+        >
+          <div className="relative">
+            <Bell size={20} />
+            {notificationCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center border-2 border-slate-900 leading-none">
+                    {notificationCount}
+                </span>
+            )}
+          </div>
+          <span>Notifications</span>
+        </NavLink>
 
         {user.role === Role.Admin && (
           <NavLink 

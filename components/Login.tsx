@@ -1,14 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
-import { MOCK_USERS } from '../services/mockData';
-import { Lock, Mail } from 'lucide-react';
+import { getUsers } from '../services/mockData';
+import { User } from '../types';
+import { Lock, Mail, Eye, EyeOff } from 'lucide-react';
 
 const Login: React.FC = () => {
-  const [identifier, setIdentifier] = useState('sana@menuiserie.ma');
+  const [identifier, setIdentifier] = useState('younes@menuiserie.ma');
   const [password, setPassword] = useState('password');
+  const [showPassword, setShowPassword] = useState(false);
+  const [availableUsers, setAvailableUsers] = useState<User[]>([]);
+  
   const { login, user } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Charger les utilisateurs depuis la DB locale
+    getUsers().then(setAvailableUsers);
+  }, []);
 
   React.useEffect(() => {
     if (user) navigate('/');
@@ -53,13 +62,20 @@ const Login: React.FC = () => {
                   <Lock className="h-5 w-5 text-gray-400" />
                 </div>
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 block w-full rounded-lg border-gray-300 bg-gray-50 border focus:bg-white focus:ring-blue-500 focus:border-blue-500 p-3"
+                  className="pl-10 pr-10 block w-full rounded-lg border-gray-300 bg-gray-50 border focus:bg-white focus:ring-blue-500 focus:border-blue-500 p-3"
                   placeholder="••••••••"
                   required
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
               </div>
               <div className="flex justify-end mt-2">
                 <button type="button" className="text-sm text-blue-600 hover:text-blue-800 hover:underline">
@@ -89,7 +105,7 @@ const Login: React.FC = () => {
           <div className="mt-8">
             <p className="text-center text-xs text-gray-500 mb-3">Comptes de démonstration (cliquez pour remplir) :</p>
             <div className="grid grid-cols-2 gap-2">
-              {MOCK_USERS.map(u => (
+              {availableUsers.map(u => (
                 <button
                   key={u.id}
                   type="button"

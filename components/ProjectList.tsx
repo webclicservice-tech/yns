@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getProjects } from '../services/mockData';
-import { Project, ProjectStatus } from '../types';
-import { Search, Filter, ChevronRight, Plus } from 'lucide-react';
+import { getProjects, getUsers } from '../services/mockData';
+import { Project, ProjectStatus, User } from '../types';
+import { Search, Filter, ChevronRight, Plus, User as UserIcon } from 'lucide-react';
 
 const ProjectList: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [responsibleFilter, setResponsibleFilter] = useState<string>('all');
   const navigate = useNavigate();
 
   useEffect(() => {
     getProjects().then(setProjects);
+    getUsers().then(setUsers);
   }, []);
 
   const filteredProjects = projects.filter(p => {
@@ -19,8 +22,15 @@ const ProjectList: React.FC = () => {
       p.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.orderNumber.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesResponsible = responsibleFilter === 'all' || p.responsibleId === responsibleFilter;
+    
+    return matchesSearch && matchesStatus && matchesResponsible;
   });
+
+  const getResponsibleName = (id: string) => {
+    const user = users.find(u => u.id === id);
+    return user ? user.name : 'Inconnu';
+  };
 
   const getStatusColor = (status: ProjectStatus) => {
     switch (status) {
@@ -29,6 +39,7 @@ const ProjectList: React.FC = () => {
       case ProjectStatus.InProduction: return 'bg-yellow-100 text-yellow-800';
       case ProjectStatus.Finished: return 'bg-green-100 text-green-800';
       case ProjectStatus.Delivered: return 'bg-purple-100 text-purple-800';
+      case ProjectStatus.Returned: return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-600';
     }
   };
@@ -48,7 +59,7 @@ const ProjectList: React.FC = () => {
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         {/* Filters */}
-        <div className="p-4 border-b border-gray-100 bg-gray-50 flex flex-col sm:flex-row gap-4">
+        <div className="p-4 border-b border-gray-100 bg-gray-50 flex flex-col md:flex-row gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
             <input
@@ -59,18 +70,35 @@ const ProjectList: React.FC = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <div className="relative min-w-[200px]">
-             <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-             <select 
-                className="pl-10 w-full rounded-lg border-gray-300 border focus:ring-blue-500 focus:border-blue-500 py-2 px-3 appearance-none bg-white"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-             >
-                <option value="all">Tous les statuts</option>
-                {Object.values(ProjectStatus).map(s => (
-                    <option key={s} value={s}>{s}</option>
-                ))}
-             </select>
+          
+          <div className="flex gap-4 flex-col sm:flex-row">
+            <div className="relative min-w-[200px]">
+                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                <select 
+                    className="pl-10 w-full rounded-lg border-gray-300 border focus:ring-blue-500 focus:border-blue-500 py-2 px-3 appearance-none bg-white"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                    <option value="all">Tous les statuts</option>
+                    {Object.values(ProjectStatus).map(s => (
+                        <option key={s} value={s}>{s}</option>
+                    ))}
+                </select>
+            </div>
+
+            <div className="relative min-w-[200px]">
+                <UserIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                <select 
+                    className="pl-10 w-full rounded-lg border-gray-300 border focus:ring-blue-500 focus:border-blue-500 py-2 px-3 appearance-none bg-white"
+                    value={responsibleFilter}
+                    onChange={(e) => setResponsibleFilter(e.target.value)}
+                >
+                    <option value="all">Tous responsables</option>
+                    {users.map(u => (
+                        <option key={u.id} value={u.id}>{u.name}</option>
+                    ))}
+                </select>
+            </div>
           </div>
         </div>
 
@@ -81,6 +109,7 @@ const ProjectList: React.FC = () => {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client / BC</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Responsable</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Création</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
@@ -101,6 +130,14 @@ const ProjectList: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                     {project.type}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    <span className="flex items-center gap-1.5">
+                        <div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-[10px] text-gray-600 font-bold">
+                            {getResponsibleName(project.responsibleId).charAt(0)}
+                        </div>
+                        {getResponsibleName(project.responsibleId)}
+                    </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(project.status)}`}>
