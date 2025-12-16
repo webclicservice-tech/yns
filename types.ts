@@ -31,6 +31,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  phone?: string;
   password?: string;
   role: Role;
 }
@@ -93,4 +94,31 @@ export interface Project {
     validatedBy?: string;
     clientNotified?: boolean;
   };
+}
+
+export interface StockItem {
+  id: string;
+  name: string;
+  category: 'Panneaux' | 'Quincaillerie' | 'Finition' | 'Consommable' | 'Autre';
+  quantity: number;
+  unit: string;
+  minThreshold: number; // Seuil d'alerte
+  location?: string;
+}
+
+export interface PurchaseOrderItem {
+  itemName: string;
+  quantity: number;
+  unit?: string;
+}
+
+export interface PurchaseOrder {
+  id: string;
+  items: PurchaseOrderItem[];
+  supplier?: string;
+  supplierAddress?: string;
+  status: 'pending' | 'ordered' | 'received';
+  dateCreated: string;
+  dateReceived?: string;
+  requestedBy: string;
 }

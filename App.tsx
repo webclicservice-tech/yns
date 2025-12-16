@@ -8,6 +8,7 @@ import ProjectList from './components/ProjectList';
 import ProjectDetail from './components/ProjectDetail';
 import NewProject from './components/NewProject';
 import Workshop from './components/Workshop';
+import Stock from './components/Stock';
 import UserList from './components/UserList';
 import Notifications from './components/Notifications';
 import Sidebar from './components/Sidebar';
@@ -16,7 +17,7 @@ import { Menu } from 'lucide-react';
 // --- Auth Context ---
 interface AuthContextType {
   user: User | null;
-  login: (email: string) => Promise<void>;
+  login: (email: string, password?: string) => Promise<boolean>;
   logout: () => void;
 }
 
@@ -27,11 +28,23 @@ export const useAuth = () => useContext(AuthContext);
 const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
 
-  const login = async (email: string) => {
+  const login = async (identifier: string, password?: string) => {
     // Vérification asynchrone dans la "DB" locale
     const users = await getUsers();
-    const foundUser = users.find(u => u.email === email) || users[0];
-    setUser(foundUser);
+    const normalizedIdentifier = identifier.toLowerCase().trim();
+
+    const foundUser = users.find(u => {
+        const isEmail = u.email.toLowerCase() === normalizedIdentifier;
+        const isPhone = u.phone && u.phone.replace(/\s/g, '') === identifier.replace(/\s/g, '');
+        return isEmail || isPhone;
+    });
+    
+    // Vérification simple du mot de passe
+    if (foundUser && foundUser.password === password) {
+        setUser(foundUser);
+        return true;
+    }
+    return false;
   };
 
   const logout = () => setUser(null);
@@ -100,6 +113,7 @@ const App: React.FC = () => {
           <Route path="/projects/new" element={<ProtectedRoute><NewProject /></ProtectedRoute>} />
           <Route path="/projects/:id" element={<ProtectedRoute><ProjectDetail /></ProtectedRoute>} />
           <Route path="/workshop" element={<ProtectedRoute><Workshop /></ProtectedRoute>} />
+          <Route path="/stock" element={<ProtectedRoute><Stock /></ProtectedRoute>} />
           <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
           <Route path="/users" element={<ProtectedRoute><UserList /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />
