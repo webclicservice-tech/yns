@@ -20,21 +20,24 @@ const ProjectDetail: React.FC = () => {
   const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
 
-  // Local state for editing
+  // Local state for editing measurements
   const [isAddingMeasure, setIsAddingMeasure] = useState(false);
   const [newMeasure, setNewMeasure] = useState<Partial<Measurement>>({ unit: Unit.CM });
   
+  // Local state for editing notes
+  const [isEditingNotes, setIsEditingNotes] = useState(false);
+  const [editedNotes, setEditedNotes] = useState('');
+
   // Refs for file inputs
   const fileInputRef = useRef<HTMLInputElement>(null);
   const deliveryFileInputRef = useRef<HTMLInputElement>(null);
+  const notesFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (id) {
       getProjectById(id).then(setProject);
     }
   }, [id]);
-
-  // Close menus when clicking outside logic could be added here
 
   const handleStatusChange = (newStatus: ProjectStatus) => {
       if (project) {
@@ -126,11 +129,38 @@ const ProjectDetail: React.FC = () => {
     }
   };
 
+  const handleNoteFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file && project && user) {
+          const newAttachment: Attachment = {
+              id: `an${Date.now()}`,
+              type: 'note_attachment',
+              filename: file.name,
+              url: '#',
+              uploadedBy: user.id,
+              date: new Date().toISOString().split('T')[0]
+          };
+          setProject({
+              ...project,
+              attachments: [...project.attachments, newAttachment]
+          });
+      }
+  };
+
+  const saveNotes = () => {
+    if (project) {
+        setProject({ ...project, notes: editedNotes });
+        setIsEditingNotes(false);
+    }
+  };
+
   if (!project) return <div className="p-8 text-center">Chargement...</div>;
 
   const photos = project.attachments.filter(a => a.type === 'photo');
-  const documents = project.attachments.filter(a => a.type !== 'photo' && a.type !== 'delivery_proof');
+  // Exclude note attachments from general documents list
+  const documents = project.attachments.filter(a => a.type !== 'photo' && a.type !== 'delivery_proof' && a.type !== 'note_attachment');
   const deliveryProofs = project.attachments.filter(a => a.type === 'delivery_proof');
+  const noteAttachments = project.attachments.filter(a => a.type === 'note_attachment');
 
   return (
     <div className="space-y-6 pb-20 relative">
@@ -451,12 +481,87 @@ const ProjectDetail: React.FC = () => {
                 {/* Notes */}
                 <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
                     <div className="flex justify-between items-start mb-2">
-                        <h4 className="text-sm font-semibold text-yellow-800">Notes & Détails Techniques</h4>
-                        <button className="text-xs text-yellow-700 underline hover:text-yellow-900">Modifier</button>
+                        <h4 className="text-sm font-semibold text-yellow-800 flex items-center gap-2">
+                            <ClipboardList size={16}/> Notes & Détails Techniques
+                        </h4>
+                        {!isEditingNotes ? (
+                             <button 
+                                onClick={() => {
+                                    setEditedNotes(project.notes || '');
+                                    setIsEditingNotes(true);
+                                }}
+                                className="text-xs text-yellow-700 underline hover:text-yellow-900"
+                            >
+                                Modifier
+                            </button>
+                        ) : (
+                            <div className="flex gap-2">
+                                <button onClick={saveNotes} className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded border border-yellow-200 hover:bg-yellow-200">Enregistrer</button>
+                                <button onClick={() => setIsEditingNotes(false)} className="text-xs text-yellow-600 hover:text-yellow-800">Annuler</button>
+                            </div>
+                        )}
                     </div>
-                    <p className="text-sm text-yellow-800 whitespace-pre-line">
-                        {project.notes || "Aucune note technique pour le moment."}
-                    </p>
+
+                    {isEditingNotes ? (
+                        <div className="space-y-3">
+                            <textarea
+                                className="w-full text-sm p-2 border border-yellow-200 rounded bg-white text-gray-800 focus:ring-2 focus:ring-yellow-400 focus:outline-none"
+                                rows={4}
+                                value={editedNotes}
+                                onChange={(e) => setEditedNotes(e.target.value)}
+                                placeholder="Ajouter des notes techniques..."
+                            />
+                             <div className="flex items-center gap-2">
+                                <button 
+                                    onClick={() => notesFileInputRef.current?.click()}
+                                    className="flex items-center gap-1 text-xs text-yellow-700 hover:text-yellow-900 bg-white px-2 py-1 rounded border border-yellow-200"
+                                >
+                                    <Paperclip size={12} /> Joindre un fichier
+                                </button>
+                                <span className="text-xs text-yellow-600 italic">PDF, Images supportés</span>
+                            </div>
+                        </div>
+                    ) : (
+                        <p className="text-sm text-yellow-800 whitespace-pre-line">
+                            {project.notes || "Aucune note technique pour le moment."}
+                        </p>
+                    )}
+
+                    {/* Attachments List for Notes */}
+                    {(noteAttachments.length > 0 || isEditingNotes) && (
+                        <div className="mt-4 space-y-2">
+                             {noteAttachments.length > 0 && <p className="text-xs font-semibold text-yellow-800 uppercase tracking-wide">Pièces jointes</p>}
+                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                {noteAttachments.map(att => (
+                                    <div key={att.id} className="flex items-center p-2 bg-white/60 border border-yellow-100 rounded text-sm">
+                                        <Paperclip size={14} className="text-yellow-600 mr-2" />
+                                        <span className="truncate flex-1 text-yellow-900">{att.filename}</span>
+                                        <button className="text-yellow-600 hover:text-yellow-800 p-1"><Download size={14}/></button>
+                                         {isEditingNotes && (
+                                            <button 
+                                                onClick={() => {
+                                                    setProject({
+                                                        ...project,
+                                                        attachments: project.attachments.filter(a => a.id !== att.id)
+                                                    })
+                                                }}
+                                                className="text-red-400 hover:text-red-600 p-1 ml-1"
+                                            >
+                                                <X size={14}/>
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
+                             </div>
+                        </div>
+                    )}
+                    
+                    <input 
+                        type="file" 
+                        ref={notesFileInputRef} 
+                        className="hidden" 
+                        onChange={handleNoteFileUpload} 
+                    />
                 </div>
             </div>
         )}

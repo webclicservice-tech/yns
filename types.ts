@@ -45,7 +45,7 @@ export interface Measurement {
 
 export interface Attachment {
   id: string;
-  type: 'photo' | 'design_pdf' | 'delivery_proof' | 'other';
+  type: 'photo' | 'design_pdf' | 'delivery_proof' | 'note_attachment' | 'other';
   filename: string;
   url: string;
   uploadedBy: string;
