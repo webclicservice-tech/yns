@@ -8,7 +8,8 @@ import {
   User as UserIcon,
   X,
   Users,
-  Bell
+  Bell,
+  Package
 } from 'lucide-react';
 import { User, Role, Project, ProjectStatus } from '../types';
 import { getProjects } from '../services/mockData';
@@ -105,6 +106,17 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onClose, onLogout }) => {
           >
             <Hammer size={20} />
             <span>Atelier</span>
+          </NavLink>
+        )}
+        
+        {(user.role === Role.Admin || user.role === Role.Atelier) && (
+          <NavLink 
+            to="/stock" 
+            onClick={onClose}
+            className={({ isActive }) => `flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${isActive ? 'bg-blue-600 text-white shadow-md' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}
+          >
+            <Package size={20} />
+            <span>Stock & Achats</span>
           </NavLink>
         )}
 

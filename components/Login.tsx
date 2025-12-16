@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
 import { getUsers } from '../services/mockData';
 import { User } from '../types';
-import { Lock, Mail, Eye, EyeOff } from 'lucide-react';
+import { Lock, Mail, Eye, EyeOff, AlertCircle } from 'lucide-react';
 
 const Login: React.FC = () => {
-  const [identifier, setIdentifier] = useState('younes@menuiserie.ma');
-  const [password, setPassword] = useState('password');
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
   
   const { login, user } = useAuth();
@@ -23,9 +24,13 @@ const Login: React.FC = () => {
     if (user) navigate('/');
   }, [user, navigate]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    login(identifier);
+    setError(null);
+    const success = await login(identifier, password);
+    if (!success) {
+        setError("Erreur d'identifiant ou de mot de passe incorrect.");
+    }
   };
 
   return (
@@ -37,6 +42,19 @@ const Login: React.FC = () => {
         </div>
         
         <div className="p-8">
+          {error && (
+            <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded-r">
+                <div className="flex">
+                    <div className="flex-shrink-0">
+                        <AlertCircle className="h-5 w-5 text-red-500" />
+                    </div>
+                    <div className="ml-3">
+                        <p className="text-sm text-red-700 font-medium">{error}</p>
+                    </div>
+                </div>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Email / Téléphone</label>
@@ -48,8 +66,8 @@ const Login: React.FC = () => {
                   type="text"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  className="pl-10 block w-full rounded-lg border-gray-300 bg-gray-50 border focus:bg-white focus:ring-blue-500 focus:border-blue-500 p-3"
-                  placeholder="Email ou téléphone"
+                  className="pl-10 block w-full rounded-lg border-gray-300 bg-gray-50 border focus:bg-white focus:ring-blue-500 focus:border-blue-500 p-3 transition-colors"
+                  placeholder="votre@email.com ou 06..."
                   required
                 />
               </div>
@@ -65,7 +83,7 @@ const Login: React.FC = () => {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 pr-10 block w-full rounded-lg border-gray-300 bg-gray-50 border focus:bg-white focus:ring-blue-500 focus:border-blue-500 p-3"
+                  className="pl-10 pr-10 block w-full rounded-lg border-gray-300 bg-gray-50 border focus:bg-white focus:ring-blue-500 focus:border-blue-500 p-3 transition-colors"
                   placeholder="••••••••"
                   required
                 />
@@ -109,7 +127,11 @@ const Login: React.FC = () => {
                 <button
                   key={u.id}
                   type="button"
-                  onClick={() => setIdentifier(u.email)}
+                  onClick={() => {
+                      setIdentifier(u.email);
+                      setPassword(u.password || '');
+                      setError(null);
+                  }}
                   className="text-xs bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded p-2 text-left truncate transition-colors"
                 >
                   <span className="font-semibold block">{u.role}</span>

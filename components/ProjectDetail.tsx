@@ -8,6 +8,9 @@ import {
   Truck, CheckSquare, Download, FileText, Plus, Trash2, Upload, X, Save, Paperclip,
   ChevronDown, User, Edit3, ChevronLeft, ChevronRight, Clock, AlertCircle
 } from 'lucide-react';
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell 
+} from 'recharts';
 
 const ProjectDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -407,6 +410,19 @@ const ProjectDetail: React.FC = () => {
   const documents = project.attachments.filter(a => a.type !== 'photo' && a.type !== 'delivery_proof' && a.type !== 'note_attachment');
   const deliveryProofs = project.attachments.filter(a => a.type === 'delivery_proof');
   const noteAttachments = project.attachments.filter(a => a.type === 'note_attachment');
+
+  // Logic for Production Charts
+  const taskStats = [
+    { name: 'À faire', status: 'todo', count: 0, color: '#9CA3AF' },
+    { name: 'En cours', status: 'in_progress', count: 0, color: '#3B82F6' },
+    { name: 'Bloqué', status: 'blocked', count: 0, color: '#EF4444' },
+    { name: 'Terminé', status: 'done', count: 0, color: '#10B981' },
+  ];
+
+  project.tasks.forEach(t => {
+    const stat = taskStats.find(s => s.status === t.status);
+    if (stat) stat.count++;
+  });
 
   return (
     <div className="space-y-6 pb-20 relative">
@@ -860,6 +876,28 @@ const ProjectDetail: React.FC = () => {
                             </button>
                         </div>
                     </div>
+                 )}
+
+                 {/* Status Chart */}
+                 {project.tasks.length > 0 && (
+                     <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm mb-6">
+                        <h4 className="text-sm font-semibold text-gray-700 mb-4">Vue d'ensemble</h4>
+                        <div className="h-48 w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={taskStats}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                    <XAxis dataKey="name" tick={{fontSize: 12}} />
+                                    <YAxis allowDecimals={false} />
+                                    <Tooltip />
+                                    <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                                        {taskStats.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.color} />
+                                        ))}
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                     </div>
                  )}
 
                  {project.tasks.length === 0 && !isAddingTask ? (

@@ -1,17 +1,19 @@
-import { Project, ProjectStatus, Role, Unit, User } from '../types';
+import { Project, ProjectStatus, Role, Unit, User, StockItem, PurchaseOrder } from '../types';
 
 // Clés de stockage pour la base de données locale
 const DB_KEYS = {
   USERS: 'mg_db_users_v1',
-  PROJECTS: 'mg_db_projects_v1'
+  PROJECTS: 'mg_db_projects_v1',
+  STOCK: 'mg_db_stock_v1',
+  ORDERS: 'mg_db_orders_v2' // V2 for structure change
 };
 
 // Données initiales (Seed) pour la première exécution
 const SEED_USERS: User[] = [
-  { id: 'u1', name: 'Younes', email: 'younes@menuiserie.ma', role: Role.Admin, password: '123' },
-  { id: 'u2', name: 'Youssef (Commercial)', email: 'youssef@menuiserie.ma', role: Role.Commercial, password: '123' },
-  { id: 'u3', name: 'Hamid (Atelier)', email: 'hamid@menuiserie.ma', role: Role.Atelier, password: '123' },
-  { id: 'u4', name: 'Karim (Livraison)', email: 'karim@menuiserie.ma', role: Role.Livraison, password: '123' },
+  { id: 'u1', name: 'Younes', email: 'younes@menuiserie.ma', phone: '0661000001', role: Role.Admin, password: '123' },
+  { id: 'u2', name: 'Youssef (Commercial)', email: 'youssef@menuiserie.ma', phone: '0661000002', role: Role.Commercial, password: '123' },
+  { id: 'u3', name: 'Hamid (Atelier)', email: 'hamid@menuiserie.ma', phone: '0661000003', role: Role.Atelier, password: '123' },
+  { id: 'u4', name: 'Karim (Livraison)', email: 'karim@menuiserie.ma', phone: '0661000004', role: Role.Livraison, password: '123' },
 ];
 
 const SEED_PROJECTS: Project[] = [
@@ -116,6 +118,34 @@ const SEED_PROJECTS: Project[] = [
   }
 ];
 
+const SEED_STOCK: StockItem[] = [
+    { id: 's1', name: 'MDF 18mm (Panneau)', category: 'Panneaux', quantity: 45, unit: 'pcs', minThreshold: 10, location: 'Zone A' },
+    { id: 's2', name: 'MDF 6mm (Fond)', category: 'Panneaux', quantity: 8, unit: 'pcs', minThreshold: 15, location: 'Zone A' },
+    { id: 's3', name: 'Charnières invisibles', category: 'Quincaillerie', quantity: 120, unit: 'pcs', minThreshold: 50, location: 'Tiroir 4' },
+    { id: 's4', name: 'Coulisses Tiroir 45cm', category: 'Quincaillerie', quantity: 12, unit: 'paires', minThreshold: 20, location: 'Tiroir 6' },
+    { id: 's5', name: 'Vernis Mat', category: 'Finition', quantity: 5, unit: 'L', minThreshold: 10, location: 'Zone Chimie' },
+    { id: 's6', name: 'Colle à bois D3', category: 'Consommable', quantity: 2, unit: 'Kg', minThreshold: 5, location: 'Établi' },
+];
+
+const SEED_ORDERS: PurchaseOrder[] = [
+    { 
+        id: 'po1', 
+        items: [{ itemName: 'Coulisses Tiroir 45cm', quantity: 50, unit: 'paires' }], 
+        status: 'ordered', 
+        dateCreated: '2025-12-14', 
+        requestedBy: 'Hamid', 
+        supplier: 'Quincaillerie Pro', 
+        supplierAddress: 'Zone Industrielle, Meknès' 
+    },
+    { 
+        id: 'po2', 
+        items: [{ itemName: 'Vis 4x30mm', quantity: 1000, unit: 'pcs' }], 
+        status: 'pending', 
+        dateCreated: '2025-12-15', 
+        requestedBy: 'Hamid' 
+    },
+];
+
 // --- Fonctions internes du service de base de données ---
 
 const loadFromStorage = <T>(key: string, defaultValue: T): T => {
@@ -188,14 +218,6 @@ export const createProject = (projectData: Partial<Project>, creator: User): Pro
     return Promise.resolve(newProject);
 };
 
-// Cette fonction n'existait pas avant, mais elle est cruciale pour la mise à jour (status, notes, etc.)
-// Nous modifions l'appel indirect via createProject pour l'instant dans les composants,
-// mais idéalement il faudrait une fonction updateProject distincte.
-// Pour garder la compatibilité avec le code existant qui modifie l'objet localement,
-// nous allons supposer que les composants rechargent les données ou que nous n'avons pas besoin d'update explicite
-// SAUF que ProjectDetail.tsx utilise setProject localement.
-// Pour la persistance réelle, ProjectDetail devrait appeler une fonction de sauvegarde.
-// Ajoutons une fonction générique de sauvegarde de projet pour l'avenir.
 export const saveProject = (project: Project): Promise<Project> => {
     const projects = loadFromStorage<Project[]>(DB_KEYS.PROJECTS, SEED_PROJECTS);
     const index = projects.findIndex(p => p.id === project.id);
@@ -248,7 +270,55 @@ export const deleteUser = (userId: string): Promise<boolean> => {
     return Promise.reject("Utilisateur introuvable");
 };
 
-// Export pour compatibilité immédiate avec les composants qui lisent MOCK_USERS directement
-// Note: Ceci est une copie statique au moment du chargement, 
-// les composants devraient idéalement utiliser getUsers()
+// STOCK
+export const getStock = (): Promise<StockItem[]> => {
+    const stock = loadFromStorage<StockItem[]>(DB_KEYS.STOCK, SEED_STOCK);
+    return Promise.resolve(stock);
+};
+
+export const updateStockItem = (item: StockItem): Promise<StockItem> => {
+    const stock = loadFromStorage<StockItem[]>(DB_KEYS.STOCK, SEED_STOCK);
+    const index = stock.findIndex(s => s.id === item.id);
+    if (index !== -1) {
+        stock[index] = item;
+    } else {
+        stock.push(item);
+    }
+    saveToStorage(DB_KEYS.STOCK, stock);
+    return Promise.resolve(item);
+};
+
+export const getPurchaseOrders = (): Promise<PurchaseOrder[]> => {
+    const orders = loadFromStorage<PurchaseOrder[]>(DB_KEYS.ORDERS, SEED_ORDERS);
+    return Promise.resolve(orders);
+};
+
+export const createPurchaseOrder = (order: Partial<PurchaseOrder>): Promise<PurchaseOrder> => {
+    const orders = loadFromStorage<PurchaseOrder[]>(DB_KEYS.ORDERS, SEED_ORDERS);
+    const newOrder: PurchaseOrder = {
+        id: `po${Date.now()}`,
+        items: order.items || [], // Array of items
+        status: 'pending',
+        dateCreated: new Date().toISOString().split('T')[0],
+        requestedBy: order.requestedBy || 'Admin',
+        supplierAddress: order.supplierAddress,
+        supplier: order.supplier,
+        ...order
+    };
+    orders.push(newOrder);
+    saveToStorage(DB_KEYS.ORDERS, orders);
+    return Promise.resolve(newOrder);
+};
+
+export const updatePurchaseOrder = (order: PurchaseOrder): Promise<PurchaseOrder> => {
+    const orders = loadFromStorage<PurchaseOrder[]>(DB_KEYS.ORDERS, SEED_ORDERS);
+    const index = orders.findIndex(o => o.id === order.id);
+    if (index !== -1) {
+        orders[index] = order;
+        saveToStorage(DB_KEYS.ORDERS, orders);
+        return Promise.resolve(order);
+    }
+    return Promise.reject("Commande non trouvée");
+};
+
 export const MOCK_USERS = loadFromStorage<User[]>(DB_KEYS.USERS, SEED_USERS);
